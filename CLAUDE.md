@@ -1,6 +1,13 @@
 # Project Guidelines
 
-##  本地开发规范
+## 分支管理准则
+
+- `main` 仅用于和上游仓库（xpzouying/xiaohongshu-mcp）同步更新内容，**不在 main 上直接开发**。
+- `qbb` 是主开发分支：所有功能、修复和本地定制都在 `qbb` 上进行，推送目标是本人 fork（Liu7i-67/xiaohongshu-mcp）。
+- 远程命名约定：`origin` = 本人 fork（git@github.com:Liu7i-67/xiaohongshu-mcp.git），`upstream` = 上游原仓库。
+- 同步上游：`git fetch upstream` → `git checkout main` → `git merge --ff-only upstream/main` → `git checkout qbb` → `git merge main`。
+
+## 本地开发规范
 
 - 要求每次修改完后,需要帮我格式化 Go 源码文件.
 - 测试过程中产生的脚本和build中间文件,如果没有必要,则删除.
