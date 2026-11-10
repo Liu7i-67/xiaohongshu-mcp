@@ -53,3 +53,16 @@ docker/docker-compose.override.yml
 # 本地分析/调试产物，不进仓库
 debug/
 .worktrees/
+
+# 本机运行/调试产物（发帖/评论/回赞的工作数据），不进仓库
+cookies*.json
+comments_log*.json
+auto_posts_log.json
+auto_like_log.json
+server*.log
+card_*.png
+gen_*.py
+post_payload.json
+*_tmp.json
+*_tmp.txt
+.zcode/
