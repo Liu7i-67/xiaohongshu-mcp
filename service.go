@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -28,11 +29,21 @@ func NewXiaohongshuService() *XiaohongshuService {
 	return &XiaohongshuService{}
 }
 
+// 文字配图（text_cards）条数与单条长度限制
+const (
+	minTextCards     = 1
+	maxTextCards     = 10
+	maxTextCardChars = 200
+)
+
 // PublishRequest 发布请求
+// 配图二选一：images（本地图/URL）或 text_cards（文字生成卡片图），不能同时提供。
 type PublishRequest struct {
 	Title      string   `json:"title" binding:"required"`
 	Content    string   `json:"content" binding:"required"`
-	Images     []string `json:"images" binding:"required,min=1"`
+	Images     []string `json:"images,omitempty"`
+	TextCards  []string `json:"text_cards,omitempty"` // 每条文字生成一张卡片图
+	CardStyle  string   `json:"card_style,omitempty"` // 卡片风格，仅 text_cards 模式有效，缺省"基础"
 	Tags       []string `json:"tags,omitempty"`
 	ScheduleAt string   `json:"schedule_at,omitempty"` // 定时发布时间，ISO8601格式，为空则立即发布
 	IsOriginal bool     `json:"is_original,omitempty"` // 是否声明原创
@@ -208,34 +219,26 @@ func (s *XiaohongshuService) PublishContent(ctx context.Context, req *PublishReq
 		return nil, fmt.Errorf("标题长度超过限制")
 	}
 
+	// 文字配图模式：每条文字由平台生成一张卡片图，与 images 互斥
+	if len(req.TextCards) > 0 {
+		if len(req.Images) > 0 {
+			return nil, fmt.Errorf("text_cards 与 images 不能同时提供")
+		}
+		return s.publishWithTextCards(ctx, req)
+	}
+
+	if len(req.Images) == 0 {
+		return nil, fmt.Errorf("images 和 text_cards 至少提供一个")
+	}
+
 	imagePaths, err := s.processImages(req.Images)
 	if err != nil {
 		return nil, err
 	}
 
-	var scheduleTime *time.Time
-	if req.ScheduleAt != "" {
-		t, err := time.Parse(time.RFC3339, req.ScheduleAt)
-		if err != nil {
-			return nil, fmt.Errorf("定时发布时间格式错误，请使用 ISO8601 格式: %v", err)
-		}
-
-		// 校验定时发布时间范围：1小时至14天
-		now := time.Now()
-		minTime := now.Add(1 * time.Hour)
-		maxTime := now.Add(14 * 24 * time.Hour)
-
-		if t.Before(minTime) {
-			return nil, fmt.Errorf("定时发布时间必须至少在1小时后，当前设置: %s，最早可选: %s",
-				t.Format("2006-01-02 15:04"), minTime.Format("2006-01-02 15:04"))
-		}
-		if t.After(maxTime) {
-			return nil, fmt.Errorf("定时发布时间不能超过14天，当前设置: %s，最晚可选: %s",
-				t.Format("2006-01-02 15:04"), maxTime.Format("2006-01-02 15:04"))
-		}
-
-		scheduleTime = &t
-		logrus.Infof("设置定时发布时间: %s", t.Format("2006-01-02 15:04"))
+	scheduleTime, err := parseScheduleAt(req.ScheduleAt)
+	if err != nil {
+		return nil, err
 	}
 
 	content := xiaohongshu.PublishImageContent{
@@ -264,6 +267,89 @@ func (s *XiaohongshuService) PublishContent(ctx context.Context, req *PublishReq
 	return response, nil
 }
 
+// publishWithTextCards 文字配图发布：校验条数/长度/风格后走平台"文字配图"链路
+func (s *XiaohongshuService) publishWithTextCards(ctx context.Context, req *PublishRequest) (*PublishResponse, error) {
+	if len(req.TextCards) < minTextCards || len(req.TextCards) > maxTextCards {
+		return nil, fmt.Errorf("text_cards 条数须在 %d~%d 之间", minTextCards, maxTextCards)
+	}
+	for i, text := range req.TextCards {
+		if len([]rune(strings.TrimSpace(text))) == 0 {
+			return nil, fmt.Errorf("text_cards 第 %d 条为空", i+1)
+		}
+		if len([]rune(text)) > maxTextCardChars {
+			return nil, fmt.Errorf("text_cards 第 %d 条超过 %d 字限制", i+1, maxTextCardChars)
+		}
+	}
+
+	cardStyle := req.CardStyle
+	if cardStyle == "" {
+		cardStyle = xiaohongshu.CardStyleBasic
+	}
+	if !xiaohongshu.IsValidCardStyle(cardStyle) {
+		return nil, fmt.Errorf("不支持的卡片风格 %q，可选: %s", cardStyle, strings.Join(xiaohongshu.ValidCardStyles(), "、"))
+	}
+
+	scheduleTime, err := parseScheduleAt(req.ScheduleAt)
+	if err != nil {
+		return nil, err
+	}
+
+	content := xiaohongshu.PublishTextCardContent{
+		Texts:        req.TextCards,
+		CardStyle:    cardStyle,
+		Title:        req.Title,
+		Content:      req.Content,
+		Tags:         req.Tags,
+		ScheduleTime: scheduleTime,
+		IsOriginal:   req.IsOriginal,
+		Visibility:   req.Visibility,
+		Products:     req.Products,
+	}
+
+	if err := s.publishTextCard(ctx, content); err != nil {
+		logrus.Errorf("发布内容失败: title=%s %v", content.Title, err)
+		return nil, err
+	}
+
+	response := &PublishResponse{
+		Title:   req.Title,
+		Content: req.Content,
+		Images:  len(req.TextCards),
+		Status:  "发布完成",
+	}
+
+	return response, nil
+}
+
+// parseScheduleAt 解析并校验定时发布时间（ISO8601，1小时至14天后）
+func parseScheduleAt(scheduleAt string) (*time.Time, error) {
+	if scheduleAt == "" {
+		return nil, nil
+	}
+
+	t, err := time.Parse(time.RFC3339, scheduleAt)
+	if err != nil {
+		return nil, fmt.Errorf("定时发布时间格式错误，请使用 ISO8601 格式: %v", err)
+	}
+
+	// 校验定时发布时间范围：1小时至14天
+	now := time.Now()
+	minTime := now.Add(1 * time.Hour)
+	maxTime := now.Add(14 * 24 * time.Hour)
+
+	if t.Before(minTime) {
+		return nil, fmt.Errorf("定时发布时间必须至少在1小时后，当前设置: %s，最早可选: %s",
+			t.Format("2006-01-02 15:04"), minTime.Format("2006-01-02 15:04"))
+	}
+	if t.After(maxTime) {
+		return nil, fmt.Errorf("定时发布时间不能超过14天，当前设置: %s，最晚可选: %s",
+			t.Format("2006-01-02 15:04"), maxTime.Format("2006-01-02 15:04"))
+	}
+
+	logrus.Infof("设置定时发布时间: %s", t.Format("2006-01-02 15:04"))
+	return &t, nil
+}
+
 // processImages 处理图片列表，支持URL下载和本地路径
 func (s *XiaohongshuService) processImages(images []string) ([]string, error) {
 	processor := downloader.NewImageProcessor()
@@ -279,6 +365,22 @@ func (s *XiaohongshuService) publishContent(ctx context.Context, content xiaohon
 	defer page.Close()
 
 	action, err := xiaohongshu.NewPublishImageAction(page)
+	if err != nil {
+		return err
+	}
+
+	return action.Publish(ctx, content)
+}
+
+// publishTextCard 执行文字配图发布
+func (s *XiaohongshuService) publishTextCard(ctx context.Context, content xiaohongshu.PublishTextCardContent) error {
+	b := newBrowser()
+	defer b.Close()
+
+	page := b.NewPage()
+	defer page.Close()
+
+	action, err := xiaohongshu.NewPublishTextCardAction(page)
 	if err != nil {
 		return err
 	}

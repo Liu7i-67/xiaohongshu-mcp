@@ -126,6 +126,7 @@ func (s *AppServer) handlePublishContent(ctx context.Context, args map[string]in
 	title, _ := args["title"].(string)
 	content, _ := args["content"].(string)
 	imagePathsInterface, _ := args["images"].([]interface{})
+	textCardsInterface, _ := args["text_cards"].([]interface{})
 	tagsInterface, _ := args["tags"].([]interface{})
 	productsInterface, _ := args["products"].([]interface{})
 
@@ -133,6 +134,13 @@ func (s *AppServer) handlePublishContent(ctx context.Context, args map[string]in
 	for _, path := range imagePathsInterface {
 		if pathStr, ok := path.(string); ok {
 			imagePaths = append(imagePaths, pathStr)
+		}
+	}
+
+	var textCards []string
+	for _, text := range textCardsInterface {
+		if textStr, ok := text.(string); ok {
+			textCards = append(textCards, textStr)
 		}
 	}
 
@@ -150,17 +158,20 @@ func (s *AppServer) handlePublishContent(ctx context.Context, args map[string]in
 		}
 	}
 
+	cardStyle, _ := args["card_style"].(string)
 	scheduleAt, _ := args["schedule_at"].(string)
 	visibility := parseVisibility(args)
 
 	isOriginal, _ := args["is_original"].(bool)
 
-	logrus.Infof("MCP: 发布内容 - 标题: %s, 图片数量: %d, 标签数量: %d, 定时: %s, 原创: %v, visibility: %s, 商品: %v", title, len(imagePaths), len(tags), scheduleAt, isOriginal, visibility, products)
+	logrus.Infof("MCP: 发布内容 - 标题: %s, 图片数量: %d, 文字卡片数量: %d, 标签数量: %d, 定时: %s, 原创: %v, visibility: %s, 商品: %v", title, len(imagePaths), len(textCards), len(tags), scheduleAt, isOriginal, visibility, products)
 
 	req := &PublishRequest{
 		Title:      title,
 		Content:    content,
 		Images:     imagePaths,
+		TextCards:  textCards,
+		CardStyle:  cardStyle,
 		Tags:       tags,
 		ScheduleAt: scheduleAt,
 		IsOriginal: isOriginal,

@@ -86,6 +86,11 @@ https://github.com/user-attachments/assets/bd9a9a4a-58cb-4421-b8f3-015f703ce1f9
 
 支持发布图文内容到小红书，包括标题、内容描述和图片。
 
+**配图二选一：图片 or 文字配图**
+
+- `images`：自己提供图片（本地路径或 URL）
+- `text_cards`：只给文字（1~10 条，每条 ≤200 字），由平台"文字配图"功能生成卡片图，无需自备图片；`card_style` 可选风格：`基础`（默认）、`美漫`、`插图`、`备忘`、`涂鸦`、`边框`、`清新`、`涂写`、`手写`
+
 **图片支持方式：**
 
 支持两种图片输入方式：
@@ -886,8 +891,10 @@ npx mcporter list xiaohongshu-mcp
 - `check_login_status` - 检查小红书登录状态（无参数）
 - `get_login_qrcode` - 获取登录二维码，返回 Base64 图片和超时时间（无参数）
 - `delete_cookies` - 删除 cookies 文件，重置登录状态，删除后需要重新登录（无参数）
-- `publish_content` - 发布图文内容到小红书（必需：title, content, images）
+- `publish_content` - 发布图文内容到小红书（必需：title, content；配图 images / text_cards 二选一）
   - `images`: 图片路径列表（至少1张），支持 HTTP 链接或本地绝对路径，推荐使用本地路径
+  - `text_cards`: 文字配图列表（1~10条，每条≤200字），与 images 二选一。每条文字由平台生成一张卡片图作为配图，无需自备图片
+  - `card_style`: 卡片风格（可选，仅 text_cards 有效）：`基础`（默认）、`美漫`、`插图`、`备忘`、`涂鸦`、`边框`、`清新`、`涂写`、`手写`
   - `tags`: 话题标签列表（可选），如 `["美食", "旅行", "生活"]`
   - `schedule_at`: 定时发布时间（可选），ISO8601 格式，支持 1 小时至 14 天内
   - `is_original`: 是否声明原创（可选），默认不声明
