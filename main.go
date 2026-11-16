@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 	"github.com/xpzouying/xiaohongshu-mcp/browser"
@@ -18,13 +20,24 @@ func main() {
 		headless bool
 		port     string
 		token    string
+		dataDir  string
 	)
 	flag.BoolVar(&headless, "headless", true, "是否无头模式")
 	flag.StringVar(&port, "port", ":18060", "端口")
 	flag.StringVar(&token, "token", "", "鉴权 Token，留空则读取 AUTH_TOKEN")
+	flag.StringVar(&dataDir, "data-dir", ".", "数据目录（实例日志 instance.log 落此目录，xhs-workbench Agent 管理模式必传）")
 	flag.Parse()
 	if token == "" {
 		token = os.Getenv("AUTH_TOKEN")
+	}
+
+	// 实例日志落 -data-dir（xhs-workbench 契约：Agent 尾随 instance.log 上报）；
+	// 同步保留 stderr，供启动器引导期抓取。必须在 EnsureBrowser 之前配置，
+	// 浏览器下载进度才能进日志。
+	if err := setupLogFile(dataDir); err != nil {
+		logrus.WithError(err).Warn("instance.log 初始化失败，仅输出 stderr")
+	} else {
+		logrus.Infof("data-dir: %s", dataDir)
 	}
 
 	logrus.Infof("xiaohongshu-mcp version: %s", version)
@@ -51,4 +64,18 @@ func main() {
 	if err := appServer.Start(port); err != nil {
 		logrus.Fatalf("failed to run server: %v", err)
 	}
+}
+
+// setupLogFile 把 logrus 输出切到 <dataDir>/instance.log（追加）+ stderr 双写。
+func setupLogFile(dataDir string) error {
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filepath.Join(dataDir, "instance.log"),
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return err
+	}
+	logrus.SetOutput(io.MultiWriter(f, os.Stderr))
+	return nil
 }
