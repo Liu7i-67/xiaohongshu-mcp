@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/xpzouying/xiaohongshu-mcp/configs"
 	"strings"
-	"time"
 
 	"github.com/go-rod/rod"
 	"github.com/xpzouying/xiaohongshu-mcp/humanize"
@@ -45,13 +45,13 @@ type UserProfileAction struct {
 }
 
 func NewUserProfileAction(page *rod.Page) *UserProfileAction {
-	pp := page.Timeout(60 * time.Second)
+	pp := page.Timeout(configs.PageTimeout())
 	return &UserProfileAction{page: pp}
 }
 
 // UserProfile 获取用户基本信息及指定 tab 下的帖子
 func (u *UserProfileAction) UserProfile(ctx context.Context, userID, xsecToken string, tab ProfileTab) (*UserProfileResponse, error) {
-	page := u.page.Context(ctx).Timeout(60 * time.Second) // 重设被 .Context 清掉的 deadline
+	page := u.page.Context(ctx).Timeout(configs.PageTimeout()) // 重设被 .Context 清掉的 deadline
 
 	searchURL := makeUserProfileURL(userID, xsecToken, tab)
 	page.MustNavigate(searchURL)
@@ -146,7 +146,7 @@ func makeUserProfileURL(userID, xsecToken string, tab ProfileTab) string {
 }
 
 func (u *UserProfileAction) GetMyProfileViaSidebar(ctx context.Context, tab ProfileTab) (*UserProfileResponse, error) {
-	page := u.page.Context(ctx).Timeout(60 * time.Second) // 重设被 .Context 清掉的 deadline
+	page := u.page.Context(ctx).Timeout(configs.PageTimeout()) // 重设被 .Context 清掉的 deadline
 
 	// 创建导航动作
 	navigate := NewNavigate(page)

@@ -2,6 +2,7 @@ package xiaohongshu
 
 import (
 	"context"
+	"github.com/xpzouying/xiaohongshu-mcp/configs"
 	"log/slog"
 	"math/rand"
 	"os"
@@ -317,7 +318,7 @@ func acceptsImage(accept string) bool {
 
 // waitForUploadComplete 等待第 expectedCount 张图片上传完成，最多等 60 秒
 func waitForUploadComplete(page *rod.Page, expectedCount int) error {
-	maxWaitTime := 60 * time.Second
+	maxWaitTime := configs.PageTimeout()
 	checkInterval := 500 * time.Millisecond
 	start := time.Now()
 	lastLogCount := expectedCount - 1

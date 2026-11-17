@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/xpzouying/xiaohongshu-mcp/configs"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -44,7 +45,7 @@ func newInteractAction(page *rod.Page) *interactAction {
 }
 
 func (a *interactAction) preparePage(ctx context.Context, actionType interactActionType, feedID, xsecToken string) *rod.Page {
-	page := a.page.Context(ctx).Timeout(60 * time.Second)
+	page := a.page.Context(ctx).Timeout(configs.PageTimeout())
 	url := makeFeedDetailURL(feedID, xsecToken)
 	logrus.Infof("Opening feed detail page for %s: %s", actionType, url)
 

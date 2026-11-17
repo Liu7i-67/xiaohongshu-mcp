@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/xpzouying/xiaohongshu-mcp/configs"
 	"net/url"
 	"slices"
 	"strings"
@@ -98,7 +99,7 @@ type SearchAction struct {
 }
 
 func NewSearchAction(page *rod.Page) *SearchAction {
-	pp := page.Timeout(60 * time.Second)
+	pp := page.Timeout(configs.PageTimeout())
 
 	return &SearchAction{page: pp}
 }
@@ -112,7 +113,7 @@ func (s *SearchAction) Search(ctx context.Context, keyword string, filters ...Fi
 
 	// 注意 .Context(ctx) 会替换掉 NewSearchAction 里设的 60s deadline，必须在其后重新 Timeout，
 	// 否则搜索页不 stable 时 MustWaitStable/MustWait 会永久挂起（无 deadline 可依赖）。
-	page := s.page.Context(ctx).Timeout(60 * time.Second)
+	page := s.page.Context(ctx).Timeout(configs.PageTimeout())
 
 	searchURL := makeSearchURL(keyword)
 	page.MustNavigate(searchURL)

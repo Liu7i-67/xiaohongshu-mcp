@@ -55,6 +55,10 @@ func main() {
 	configs.SetFingerprintSeed(configs.ResolveFingerprintSeed(
 		cookies.NewLoadCookie(cookies.GetCookiesFilePath())))
 	configs.SetProxy(configs.ProxyFromEnv())
+	if pt := configs.PageTimeoutFromEnv(); pt > 0 {
+		configs.InitPageTimeout(pt)
+		logrus.Infof("page timeout budget: %ds", pt)
+	}
 
 	// 初始化服务
 	xiaohongshuService := NewXiaohongshuService()

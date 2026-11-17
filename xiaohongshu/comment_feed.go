@@ -3,6 +3,7 @@ package xiaohongshu
 import (
 	"context"
 	"fmt"
+	"github.com/xpzouying/xiaohongshu-mcp/configs"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -23,7 +24,7 @@ func NewCommentFeedAction(page *rod.Page) *CommentFeedAction {
 // PostComment 发表评论到 Feed
 func (f *CommentFeedAction) PostComment(ctx context.Context, feedID, xsecToken, content string) error {
 	// 不使用 Context(ctx)，避免继承外部 context 的超时
-	page := f.page.Timeout(60 * time.Second)
+	page := f.page.Timeout(configs.PageTimeout())
 
 	url := makeFeedDetailURL(feedID, xsecToken)
 	logrus.Infof("打开 feed 详情页: %s", url)

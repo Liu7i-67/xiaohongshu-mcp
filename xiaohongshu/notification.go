@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/xpzouying/xiaohongshu-mcp/configs"
 	"strings"
 	"time"
 
@@ -97,7 +98,7 @@ func NewNotificationAction(page *rod.Page) *NotificationAction {
 
 // UnreadCount 读取三个分区的未读数。
 func (n *NotificationAction) UnreadCount(ctx context.Context) (*NotificationCount, error) {
-	page := n.page.Timeout(60 * time.Second)
+	page := n.page.Timeout(configs.PageTimeout())
 
 	page.MustNavigate("https://www.xiaohongshu.com/explore").MustWaitLoad()
 	humanize.Delay(ctx, humanize.AfterNavigate)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/xpzouying/xiaohongshu-mcp/configs"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -15,7 +16,7 @@ type FeedsListAction struct {
 }
 
 func NewFeedsListAction(page *rod.Page) *FeedsListAction {
-	pp := page.Timeout(60 * time.Second)
+	pp := page.Timeout(configs.PageTimeout())
 
 	pp.MustNavigate("https://www.xiaohongshu.com")
 	pp.MustWaitDOMStable()
@@ -26,7 +27,7 @@ func NewFeedsListAction(page *rod.Page) *FeedsListAction {
 // GetFeedsList 获取页面的 Feed 列表数据
 func (f *FeedsListAction) GetFeedsList(ctx context.Context) ([]Feed, error) {
 	// 重设超时：.Context(ctx) 会替换掉构造函数里 Timeout(60s) 的 deadline
-	page := f.page.Context(ctx).Timeout(60 * time.Second)
+	page := f.page.Context(ctx).Timeout(configs.PageTimeout())
 
 	readFeeds := func() string {
 		return page.MustEval(`() => {
