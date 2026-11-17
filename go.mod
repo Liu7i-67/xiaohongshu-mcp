@@ -56,3 +56,8 @@ require (
 	google.golang.org/protobuf v1.34.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// vendored：上游 v0.4.0 的本地副本，打 Windows 禁用 leakless 补丁（Defender 误报拦截，
+// 见 third_party/headless_browser/headless_browser.go New() 内注释）。
+replace github.com/xpzouying/headless_browser => ./third_party/headless_browser
+
