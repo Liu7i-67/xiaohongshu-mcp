@@ -21,8 +21,10 @@ func main() {
 		port     string
 		token    string
 		dataDir  string
+		takeover bool
 	)
 	flag.BoolVar(&headless, "headless", true, "是否无头模式")
+	flag.BoolVar(&takeover, "takeover", false, "人工接管模式：以账号身份打开可视化浏览器（cookies/seed/代理取环境变量），浏览器关闭即退出")
 	flag.StringVar(&port, "port", ":18060", "端口")
 	flag.StringVar(&token, "token", "", "鉴权 Token，留空则读取 AUTH_TOKEN")
 	flag.StringVar(&dataDir, "data-dir", ".", "数据目录（实例日志 instance.log 落此目录，xhs-workbench Agent 管理模式必传）")
@@ -58,6 +60,14 @@ func main() {
 	if pt := configs.PageTimeoutFromEnv(); pt > 0 {
 		configs.InitPageTimeout(pt)
 		logrus.Infof("page timeout budget: %ds", pt)
+	}
+
+	// 人工接管模式（D16）：不开 HTTP 服务，单浏览器 + 账号上下文，窗口关即退出
+	if takeover {
+		if err := runTakeover(); err != nil {
+			logrus.Fatalf("takeover 失败: %v", err)
+		}
+		return
 	}
 
 	// 初始化服务

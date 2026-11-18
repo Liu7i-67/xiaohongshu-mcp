@@ -315,6 +315,12 @@ func primaryLang(lang string) string {
 	return lang
 }
 
+// Alive 浏览器进程是否存活（takeover 模式的退出探测：DevTools 连接断开即视为已关闭）。
+func (b *Browser) Alive() bool {
+	_, err := b.browser.Pages()
+	return err == nil
+}
+
 // Close closes the browser and cleans up resources.
 func (b *Browser) Close() {
 	b.browser.MustClose()
